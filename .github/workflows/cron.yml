@@ -3,24 +3,31 @@ on:
   schedule:
     - cron: '0 2 * * *'
   workflow_dispatch:
+
 jobs:
   evolve:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
+
       - name: Install deps
         run: pip install requests
-        
+
       - name: Run agent
         run: python main.py
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          
+
+      - name: Get version
+        id: version
+        run: echo "version=$(jq -r .version state.json)" >> $GITHUB_OUTPUT
+
       - name: Commit changes
         run: |
           git config user.name forge-bot
@@ -29,6 +36,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "v$(jq -r .version state.json): auto-evolve"
+            git commit -m "v${{ steps.version.outputs.version }}: auto-evolve"
             git push
           fi
